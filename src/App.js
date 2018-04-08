@@ -131,12 +131,25 @@ export default compose(
   }),
   graphql(CreateRecipe, {
     props: props => ({   
-      onAdd: recipe => {
-        console.log('recipe: ', recipe);
-        props.mutate({
-          variables: recipe
+      onAdd: recipe => props.mutate({
+          variables: recipe,
+          optimisticResponse: {
+            __typename: 'Mutation',
+            createRecipe: { ...recipe, __typename: 'Recipe' }
+          },
+          update: (proxy, {data: { createRecipe } }) => {
+            const data = proxy.readQuery({ query: ListRecipes })
+            let hasBeenAdded = false
+            data.listRecipes.items.map((item) => {
+              if (item.id === createRecipe.id) {
+                hasBeenAdded = true
+              }
+            })
+            if (hasBeenAdded) return
+            data.listRecipes.items.push(createRecipe)
+            proxy.writeQuery({ query: ListRecipes, data })
+          }
         })
-      }
     })
   })
 )(App);
